@@ -13,6 +13,7 @@ const clearReservationsDateBtn = document.getElementById("clearReservationsDateB
 const refreshReservationsBtn = document.getElementById("refreshReservationsBtn");
 const reservationsList = document.getElementById("reservationsList");
 const reservationsMessage = document.getElementById("reservationsMessage");
+const adminLogoutBtn = document.getElementById("adminLogoutBtn");
 
 function formatDateLabel(dateValue) {
   const date = new Date(dateValue);
@@ -326,6 +327,16 @@ clearReservationsDateBtn.addEventListener("click", () => {
 reservationsDateInput.addEventListener("change", () => {
   loadReservations();
 });
+
+if (adminLogoutBtn) {
+  adminLogoutBtn.addEventListener("click", async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } finally {
+      window.location.href = "/login";
+    }
+  });
+}
 
 (async () => {
   const ok = await loadProfile();

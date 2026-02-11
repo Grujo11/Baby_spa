@@ -201,6 +201,10 @@ function setCookie(res, name, value, options) {
   res.setHeader("Set-Cookie", cookie);
 }
 
+function clearCookie(res, name) {
+  setCookie(res, name, "", { expires: new Date(0), secure: process.env.NODE_ENV === "production" });
+}
+
 function sendJson(res, status, payload) {
   res.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
   res.end(JSON.stringify(payload));
@@ -655,6 +659,34 @@ const server = http.createServer(async (req, res) => {
       return serveFile(res, path.join(PUBLIC_DIR, "login-password.html"));
     }
 
+    if (method === "POST" && pathname === "/api/auth/logout") {
+      const token = cookies[SESSION_COOKIE_NAME];
+      try {
+        if (token) {
+          const tokenHash = hashToken(token);
+          await pool.query("DELETE FROM sessions WHERE token_hash = $1", [tokenHash]);
+        }
+      } catch (err) {
+        console.error("[auth:logout]", err);
+      }
+      clearCookie(res, SESSION_COOKIE_NAME);
+      return sendJson(res, 200, { ok: true });
+    }
+
+    if (method === "GET" && pathname === "/api/auth/logout") {
+      const token = cookies[SESSION_COOKIE_NAME];
+      try {
+        if (token) {
+          const tokenHash = hashToken(token);
+          await pool.query("DELETE FROM sessions WHERE token_hash = $1", [tokenHash]);
+        }
+      } catch (err) {
+        console.error("[auth:logout]", err);
+      }
+      clearCookie(res, SESSION_COOKIE_NAME);
+      return redirect(res, "/login");
+    }
+
     if (method === "POST" && pathname === "/api/auth/register") {
       const body = parseBody(req, await readBody(req));
       const email = String(body.email || "")
@@ -869,21 +901,31 @@ const server = http.createServer(async (req, res) => {
       }
 
       try {
+        const workDayResult = await pool.query("SELECT * FROM work_days WHERE work_date = $1 LIMIT 1", [dateValue]);
+        const workDay = workDayResult.rows[0];
+        if (!workDay) {
+          return sendJson(res, 200, { slots: [], availability: "NOT_CONFIGURED" });
+        }
+
+        if (workDay.is_closed) {
+          return sendJson(res, 200, { slots: [], availability: "CLOSED" });
+        }
+
+        if (!workDay.start_time || !workDay.end_time) {
+          return sendJson(res, 200, { slots: [], availability: "NOT_CONFIGURED" });
+        }
+
         let slotsResult = await pool.query(
           "SELECT id, start_time, end_time FROM time_slots WHERE work_date = $1 AND status = 'AVAILABLE' AND start_time > now() ORDER BY start_time",
           [dateValue]
         );
 
         if (slotsResult.rows.length === 0) {
-          const workDayResult = await pool.query("SELECT * FROM work_days WHERE work_date = $1 LIMIT 1", [dateValue]);
-          const workDay = workDayResult.rows[0];
-          if (workDay) {
-            await generateSlotsForWorkDay(workDay);
-            slotsResult = await pool.query(
-              "SELECT id, start_time, end_time FROM time_slots WHERE work_date = $1 AND status = 'AVAILABLE' AND start_time > now() ORDER BY start_time",
-              [dateValue]
-            );
-          }
+          await generateSlotsForWorkDay(workDay);
+          slotsResult = await pool.query(
+            "SELECT id, start_time, end_time FROM time_slots WHERE work_date = $1 AND status = 'AVAILABLE' AND start_time > now() ORDER BY start_time",
+            [dateValue]
+          );
         }
 
         const slots = slotsResult.rows.map((slot) => ({
@@ -892,7 +934,10 @@ const server = http.createServer(async (req, res) => {
           endTime: formatTimeLabel(new Date(slot.end_time)),
         }));
 
-        return sendJson(res, 200, { slots });
+        return sendJson(res, 200, {
+          slots,
+          availability: slots.length ? "OPEN" : "NO_AVAILABLE",
+        });
       } catch (err) {
         console.error("[slots]", err);
         return sendJson(res, 500, { error: "Server error" });

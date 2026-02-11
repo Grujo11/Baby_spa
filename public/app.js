@@ -16,6 +16,7 @@ const phoneInput = document.getElementById("phone");
 const babyNameInput = document.getElementById("babyName");
 const babyAgeMonthsInput = document.getElementById("babyAgeMonths");
 const notesInput = document.getElementById("notes");
+const logoutBtn = document.getElementById("logoutBtn");
 
 const state = {
   selectedSlot: null,
@@ -85,6 +86,10 @@ async function loadProfile() {
   }
 
   const data = await response.json();
+  if (String(data.role || "").toUpperCase() === "ADMIN") {
+    window.location.href = "/admin";
+    return null;
+  }
   accountEmail.textContent = data.email;
   accountMessage.textContent = "Profil se cuva automatski.";
   firstNameInput.value = data.firstName || "";
@@ -108,7 +113,13 @@ async function loadSlots(dateValue) {
 
     const slots = data.slots || [];
     if (!slots.length) {
-      slotsMessage.textContent = "Nema slobodnih termina.";
+      if (data.availability === "CLOSED") {
+        slotsMessage.textContent = "Ovaj dan je neradan.";
+      } else if (data.availability === "NOT_CONFIGURED") {
+        slotsMessage.textContent = "Termini jos nisu dostupni za taj dan.";
+      } else {
+        slotsMessage.textContent = "Nema slobodnih termina.";
+      }
       return;
     }
 
@@ -200,5 +211,15 @@ function initDates() {
 }
 
 reservationForm.addEventListener("submit", handleReservation);
+
+if (logoutBtn) {
+  logoutBtn.addEventListener("click", async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } finally {
+      window.location.href = "/login";
+    }
+  });
+}
 
 loadProfile().then(() => initDates());
