@@ -356,6 +356,34 @@ function getTransport() {
 }
 
 async function sendEmail(payload) {
+  const resendApiKey = String(process.env.RESEND_API_KEY || "").trim();
+  if (resendApiKey) {
+    const resendFrom = String(process.env.RESEND_FROM || process.env.SMTP_FROM || "").trim();
+    if (!resendFrom) {
+      throw new Error("RESEND_FROM is required when RESEND_API_KEY is set.");
+    }
+
+    const resendResponse = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${resendApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: resendFrom,
+        to: [payload.to],
+        subject: payload.subject,
+        html: payload.html,
+      }),
+    });
+
+    if (!resendResponse.ok) {
+      const errorText = await resendResponse.text();
+      throw new Error(`Resend API error (${resendResponse.status}): ${errorText}`);
+    }
+    return;
+  }
+
   const transport = getTransport();
   if (!transport) {
     console.log("[email:dry-run]", payload.subject, payload.to);
