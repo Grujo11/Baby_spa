@@ -7,6 +7,7 @@ const messages = [
   ["not_verified", "Prvo potvrdi mejl adresu."],
   ["no_password", "Nalog nema lozinku. Vrati se na registraciju i postavi lozinku."],
   ["login_error", "Neispravan mejl ili lozinka."],
+  ["sender_not_verified", "Mail servis je u test modu. Podesi verifikovan sender domen za slanje korisnicima."],
   ["sent", "Poslat je magic link na mejl."],
   ["error", "Neispravan mejl ili link."],
 ];

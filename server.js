@@ -383,6 +383,11 @@ async function sendEmail(payload) {
 
     if (!resendResponse.ok) {
       const errorText = await resendResponse.text();
+      if (resendResponse.status === 403 && /resend\.dev/i.test(resendFrom)) {
+        const explicitError = new Error(`RESEND_DOMAIN_NOT_VERIFIED: ${errorText}`);
+        explicitError.code = "RESEND_DOMAIN_NOT_VERIFIED";
+        throw explicitError;
+      }
       throw new Error(`Resend API error (${resendResponse.status}): ${errorText}`);
     }
     return;
@@ -730,6 +735,9 @@ const server = http.createServer(async (req, res) => {
         return redirect(res, "/login?verify_sent=1");
       } catch (err) {
         console.error("[auth:register]", err);
+        if (err && err.code === "RESEND_DOMAIN_NOT_VERIFIED") {
+          return redirect(res, "/login?sender_not_verified=1");
+        }
         return redirect(res, "/login?register_error=1");
       }
     }
@@ -790,6 +798,9 @@ const server = http.createServer(async (req, res) => {
         return redirect(res, `${sourcePath}?sent=1`);
       } catch (err) {
         console.error("[auth:request-login-link]", err);
+        if (err && err.code === "RESEND_DOMAIN_NOT_VERIFIED") {
+          return redirect(res, `${sourcePath}?sender_not_verified=1`);
+        }
         return redirect(res, `${sourcePath}?error=1`);
       }
     }
@@ -816,6 +827,9 @@ const server = http.createServer(async (req, res) => {
         return redirect(res, "/login?sent=1");
       } catch (err) {
         console.error("[auth:request]", err);
+        if (err && err.code === "RESEND_DOMAIN_NOT_VERIFIED") {
+          return redirect(res, "/login?sender_not_verified=1");
+        }
         return redirect(res, "/login?error=1");
       }
     }

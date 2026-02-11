@@ -7,6 +7,7 @@ const messages = [
   ["weak_password", "Lozinka mora imati najmanje 8 karaktera."],
   ["mismatch", "Lozinke se ne poklapaju."],
   ["exists", "Nalog vec postoji. Idi na prijavu."],
+  ["sender_not_verified", "Mail servis je u test modu. Podesi verifikovan sender domen za slanje korisnicima."],
   ["register_error", "Registracija nije uspela. Pokusaj ponovo."],
   ["error", "Neispravan mejl ili link."],
 ];

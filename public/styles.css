@@ -224,6 +224,24 @@ textarea {
   font-size: 13px;
 }
 
+.location-grid {
+  align-items: stretch;
+}
+
+.map-card {
+  padding: 0;
+  overflow: hidden;
+  min-height: 320px;
+}
+
+.map-card iframe {
+  width: 100%;
+  height: 100%;
+  min-height: 320px;
+  border: 0;
+  display: block;
+}
+
 .auth-switch {
   display: flex;
   justify-content: flex-start;
@@ -240,5 +258,9 @@ textarea {
 
   .login-grid {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .location-grid {
+    grid-template-columns: 0.9fr 1.2fr;
   }
 }
