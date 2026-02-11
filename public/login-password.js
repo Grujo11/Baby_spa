@@ -2,12 +2,12 @@ const statusMessage = document.getElementById("statusMessage");
 const params = new URLSearchParams(window.location.search);
 
 const messages = [
-  ["verify_sent", "Poslat je mejl za potvrdu naloga."],
-  ["sent", "Link je poslat. Proveri mejl."],
-  ["weak_password", "Lozinka mora imati najmanje 8 karaktera."],
-  ["mismatch", "Lozinke se ne poklapaju."],
-  ["exists", "Nalog vec postoji. Idi na prijavu."],
-  ["register_error", "Registracija nije uspela. Pokusaj ponovo."],
+  ["exists", "Nalog vec postoji. Prijavi se lozinkom."],
+  ["password_ready", "Lozinka je postavljena. Sada se prijavi."],
+  ["not_verified", "Prvo potvrdi mejl adresu."],
+  ["no_password", "Nalog nema lozinku. Vrati se na registraciju i postavi lozinku."],
+  ["login_error", "Neispravan mejl ili lozinka."],
+  ["sent", "Poslat je magic link na mejl."],
   ["error", "Neispravan mejl ili link."],
 ];
 

@@ -26,7 +26,10 @@ function loadEnv() {
 loadEnv();
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_URL = process.env.APP_URL || `http://localhost:${PORT}`;
+const APP_URL_RAW = String(process.env.APP_URL || "").trim();
+const APP_URL = APP_URL_RAW
+  ? (/^https?:\/\//i.test(APP_URL_RAW) ? APP_URL_RAW : `https://${APP_URL_RAW}`).replace(/\/+$/, "")
+  : `http://localhost:${PORT}`;
 const BOOKING_WINDOW_DAYS = 7;
 const SESSION_COOKIE_NAME = "bs_session";
 const SESSION_TTL_DAYS = 7;
@@ -270,11 +273,72 @@ function parseBody(req, rawBody) {
   return {};
 }
 
+function escapeHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function renderEmailTemplate(options) {
+  const title = escapeHtml(options.title || "Baby Spa");
+  const lead = escapeHtml(options.lead || "");
+  const contentHtml = options.contentHtml || "";
+  const ctaUrl = escapeHtml(options.ctaUrl || "");
+  const ctaLabel = escapeHtml(options.ctaLabel || "Otvori");
+  const note = escapeHtml(options.note || "");
+  const imageUrl = `${APP_URL}/babyspa-hero.jpg`;
+
+  return `<!doctype html>
+<html lang="sr">
+  <body style="margin:0;background:#f4efe9;font-family:Arial,Helvetica,sans-serif;color:#2b1c12;">
+    <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="padding:24px 12px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #eadfce;">
+            <tr>
+              <td>
+                <img src="${imageUrl}" alt="Baby Spa" style="display:block;width:100%;height:auto;max-height:240px;object-fit:cover;" />
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:28px 26px 20px;">
+                <p style="margin:0 0 10px;font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#8d7a6a;">Baby Spa Loznica</p>
+                <h1 style="margin:0 0 12px;font-size:30px;line-height:1.2;color:#2b1c12;">${title}</h1>
+                <p style="margin:0 0 18px;font-size:16px;line-height:1.6;color:#4c3a2c;">${lead}</p>
+                ${contentHtml}
+                ${
+                  ctaUrl
+                    ? `<p style="margin:24px 0 8px;">
+                  <a href="${ctaUrl}" style="display:inline-block;padding:12px 18px;background:#c58a5a;color:#2b1c12;text-decoration:none;font-weight:700;border-radius:10px;">${ctaLabel}</a>
+                </p>`
+                    : ""
+                }
+                ${
+                  note
+                    ? `<p style="margin:16px 0 0;font-size:13px;line-height:1.5;color:#7c6a5b;">${note}</p>`
+                    : ""
+                }
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+}
+
 function getTransport() {
-  const smtpHost = process.env.SMTP_HOST;
-  const smtpPort = process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : undefined;
-  const smtpUser = process.env.SMTP_USER;
-  const smtpPass = process.env.SMTP_PASS;
+  const smtpHost = String(process.env.SMTP_HOST || "")
+    .trim()
+    .replace(/^=+/, "");
+  const smtpPortRaw = String(process.env.SMTP_PORT || "").trim().replace(/^=+/, "");
+  const smtpPort = smtpPortRaw ? Number(smtpPortRaw) : undefined;
+  const smtpUser = String(process.env.SMTP_USER || "").trim();
+  const smtpPass = String(process.env.SMTP_PASS || "").trim();
 
   if (!smtpHost || !smtpPort || !smtpUser || !smtpPass) {
     return null;
@@ -313,12 +377,15 @@ async function sendVerificationEmail(email, token) {
   await sendEmail({
     to: email,
     subject: "Potvrda naloga - Baby Spa",
-    html: `
-      <p>Zdravo,</p>
-      <p>Klikni na link da potvrdis nalog:</p>
-      <p><a href="${verifyUrl}">Potvrdi nalog</a></p>
-      <p>Ako nisi ti, ignorisi ovaj mejl.</p>
-    `,
+    html: renderEmailTemplate({
+      title: "Potvrda naloga",
+      lead: "Dobrodosla u Baby Spa rezervacije.",
+      contentHtml:
+        '<p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:#4c3a2c;">Klikni na dugme ispod da potvrdis svoju email adresu i aktiviras nalog.</p>',
+      ctaUrl: verifyUrl,
+      ctaLabel: "Potvrdi nalog",
+      note: "Ako nisi ti poslao zahtev, slobodno ignorisi ovaj mejl.",
+    }),
   });
 }
 
@@ -327,47 +394,76 @@ async function sendLoginEmail(email, token) {
   await sendEmail({
     to: email,
     subject: "Prijava - Baby Spa",
-    html: `
-      <p>Zdravo,</p>
-      <p>Klikni na link da se prijavis:</p>
-      <p><a href="${loginUrl}">Prijava</a></p>
-    `,
+    html: renderEmailTemplate({
+      title: "Prijava na nalog",
+      lead: "Trazen je magic link za prijavu.",
+      contentHtml:
+        '<p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:#4c3a2c;">Ako zelis brzu prijavu bez lozinke, klikni na dugme ispod.</p>',
+      ctaUrl: loginUrl,
+      ctaLabel: "Prijavi se",
+      note: "Ako nisi ti poslao zahtev, ignorisi poruku.",
+    }),
   });
 }
 
 async function sendReservationConfirmationEmail(email, dateLabel, timeLabel, cancelUrl, babyLabel) {
+  const safeDate = escapeHtml(dateLabel);
+  const safeTime = escapeHtml(timeLabel);
+  const safeBaby = babyLabel ? escapeHtml(babyLabel) : "";
   await sendEmail({
     to: email,
     subject: "Potvrda rezervacije - Baby Spa",
-    html: `
-      <p>Rezervacija je uspesno zakazana.</p>
-      <p><strong>${dateLabel}</strong> u <strong>${timeLabel}</strong></p>
-      ${babyLabel ? `<p><strong>${babyLabel}</strong></p>` : ""}
-      <p>Ako zelis da otkazes termin:</p>
-      <p><a href="${cancelUrl}">Otkazi termin</a></p>
-    `,
+    html: renderEmailTemplate({
+      title: "Rezervacija je potvrdjena",
+      lead: "Tvoj termin je uspesno sacuvan.",
+      contentHtml: `
+        <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:#4c3a2c;">
+          Termin: <strong>${safeDate}</strong> u <strong>${safeTime}</strong>
+        </p>
+        ${safeBaby ? `<p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:#4c3a2c;"><strong>${safeBaby}</strong></p>` : ""}
+      `,
+      ctaUrl: cancelUrl,
+      ctaLabel: "Otkazi termin",
+      note: "Ako otkazujes termin, koristi dugme iznad.",
+    }),
   });
 }
 
 async function sendReservationCanceledEmail(email, dateLabel, timeLabel) {
+  const safeDate = escapeHtml(dateLabel);
+  const safeTime = escapeHtml(timeLabel);
   await sendEmail({
     to: email,
     subject: "Otkazivanje rezervacije - Baby Spa",
-    html: `
-      <p>Tvoja rezervacija je otkazana.</p>
-      <p><strong>${dateLabel}</strong> u <strong>${timeLabel}</strong></p>
-    `,
+    html: renderEmailTemplate({
+      title: "Termin je otkazan",
+      lead: "Uspesno smo oslobodili rezervaciju.",
+      contentHtml: `
+        <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:#4c3a2c;">
+          Otkazan termin: <strong>${safeDate}</strong> u <strong>${safeTime}</strong>
+        </p>
+      `,
+      note: "Ako zelis novi termin, prijavi se i rezervisi ponovo.",
+    }),
   });
 }
 
 async function sendReminderEmail(email, dateLabel, timeLabel) {
+  const safeDate = escapeHtml(dateLabel);
+  const safeTime = escapeHtml(timeLabel);
   await sendEmail({
     to: email,
     subject: "Podsetnik - Baby Spa",
-    html: `
-      <p>Podsetnik za termin za 2 sata.</p>
-      <p><strong>${dateLabel}</strong> u <strong>${timeLabel}</strong></p>
-    `,
+    html: renderEmailTemplate({
+      title: "Podsetnik za termin",
+      lead: "Tvoj termin pocinje za oko 2 sata.",
+      contentHtml: `
+        <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:#4c3a2c;">
+          Vidimo se <strong>${safeDate}</strong> u <strong>${safeTime}</strong>.
+        </p>
+      `,
+      note: "Ako ne mozes da dodjes, otkazi termin iz prethodnog mejla potvrde.",
+    }),
   });
 }
 
@@ -522,6 +618,15 @@ const server = http.createServer(async (req, res) => {
       return serveFile(res, path.join(PUBLIC_DIR, "login.html"));
     }
 
+    if (method === "GET" && pathname === "/login/password") {
+      const user = await getSessionUser(cookies[SESSION_COOKIE_NAME]);
+      if (user) {
+        if (isAdmin(user)) return redirect(res, "/admin");
+        return redirect(res, "/");
+      }
+      return serveFile(res, path.join(PUBLIC_DIR, "login-password.html"));
+    }
+
     if (method === "POST" && pathname === "/api/auth/register") {
       const body = parseBody(req, await readBody(req));
       const email = String(body.email || "")
@@ -551,9 +656,9 @@ const server = http.createServer(async (req, res) => {
         } else {
           const user = existing.rows[0];
           if (user.email_verified_at) {
-            if (user.password_hash) return redirect(res, "/login?exists=1");
+            if (user.password_hash) return redirect(res, "/login/password?exists=1");
             await pool.query("UPDATE users SET password_hash = $1, updated_at = now() WHERE id = $2", [passwordHash, user.id]);
-            return redirect(res, "/login?password_ready=1");
+            return redirect(res, "/login/password?password_ready=1");
           }
 
           await pool.query("UPDATE users SET password_hash = $1, updated_at = now() WHERE id = $2", [passwordHash, user.id]);
@@ -576,7 +681,7 @@ const server = http.createServer(async (req, res) => {
         .toLowerCase();
       const password = String(body.password || "");
 
-      if (!validateEmail(email) || !password) return redirect(res, "/login?login_error=1");
+      if (!validateEmail(email) || !password) return redirect(res, "/login/password?login_error=1");
 
       try {
         const result = await pool.query(
@@ -584,10 +689,10 @@ const server = http.createServer(async (req, res) => {
           [email]
         );
         const user = result.rows[0];
-        if (!user) return redirect(res, "/login?login_error=1");
-        if (!user.email_verified_at) return redirect(res, "/login?not_verified=1");
-        if (!user.password_hash) return redirect(res, "/login?no_password=1");
-        if (!verifyPassword(password, user.password_hash)) return redirect(res, "/login?login_error=1");
+        if (!user) return redirect(res, "/login/password?login_error=1");
+        if (!user.email_verified_at) return redirect(res, "/login/password?not_verified=1");
+        if (!user.password_hash) return redirect(res, "/login/password?no_password=1");
+        if (!verifyPassword(password, user.password_hash)) return redirect(res, "/login/password?login_error=1");
 
         await createSession(res, user.id);
         if (String(user.role || "").toUpperCase() === "ADMIN") {
@@ -596,7 +701,7 @@ const server = http.createServer(async (req, res) => {
         return redirect(res, "/");
       } catch (err) {
         console.error("[auth:login-password]", err);
-        return redirect(res, "/login?login_error=1");
+        return redirect(res, "/login/password?login_error=1");
       }
     }
 
@@ -605,7 +710,9 @@ const server = http.createServer(async (req, res) => {
       const email = String(body.email || "")
         .trim()
         .toLowerCase();
-      if (!validateEmail(email)) return redirect(res, "/login?error=1");
+      const source = String(body.source || "").trim() === "register" ? "register" : "password";
+      const sourcePath = source === "register" ? "/login" : "/login/password";
+      if (!validateEmail(email)) return redirect(res, `${sourcePath}?error=1`);
 
       try {
         const result = await pool.query("SELECT id, email, email_verified_at FROM users WHERE email = $1 LIMIT 1", [email]);
@@ -620,10 +727,10 @@ const server = http.createServer(async (req, res) => {
           }
         }
 
-        return redirect(res, "/login?sent=1");
+        return redirect(res, `${sourcePath}?sent=1`);
       } catch (err) {
         console.error("[auth:request-login-link]", err);
-        return redirect(res, "/login?error=1");
+        return redirect(res, `${sourcePath}?error=1`);
       }
     }
 
