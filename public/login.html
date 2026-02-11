@@ -18,16 +18,46 @@
         <div class="section">
           <div>
             <p class="eyebrow">Baby Spa</p>
-            <h1 class="title">Prijava</h1>
+            <h1 class="title">Nalog</h1>
           </div>
           <p class="subtitle">
-            Unesi mejl. Stize link za potvrdu naloga ili prijavu. Nakon toga
-            ostajes ulogovan i vracas se na pocetnu stranu.
+            Prvi put napravi nalog sa mejlom i lozinkom, potvrdi mejl i nakon
+            toga se prijavljujes klasicno sa lozinkom. Magic link ostaje kao
+            rezervna opcija.
           </p>
-          <form class="form-grid" action="/api/auth/request-access" method="post">
-            <input type="email" name="email" placeholder="mejl@primer.com" required />
-            <button class="button" type="submit">Posalji link</button>
-          </form>
+
+          <div class="grid-2 login-grid">
+            <article class="card">
+              <p class="eyebrow">Korak 1</p>
+              <h2 class="card-title">Napravi nalog</h2>
+              <form class="form-grid" action="/api/auth/register" method="post">
+                <input type="email" name="email" placeholder="mejl@primer.com" required />
+                <input type="password" name="password" placeholder="Lozinka (min 8 karaktera)" required />
+                <input type="password" name="confirmPassword" placeholder="Potvrdi lozinku" required />
+                <button class="button" type="submit">Registruj nalog</button>
+              </form>
+              <p class="muted">Na mejl ti stize potvrda naloga.</p>
+            </article>
+
+            <article class="card">
+              <p class="eyebrow">Korak 2</p>
+              <h2 class="card-title">Prijava</h2>
+              <form class="form-grid" action="/api/auth/login-password" method="post">
+                <input type="email" name="email" placeholder="mejl@primer.com" required />
+                <input type="password" name="password" placeholder="Lozinka" required />
+                <button class="button" type="submit">Prijavi se</button>
+              </form>
+
+              <div class="divider"></div>
+
+              <form class="form-grid" action="/api/auth/request-login-link" method="post">
+                <input type="email" name="email" placeholder="Magic link - unesi mejl" required />
+                <button class="button secondary" type="submit">Posalji magic link</button>
+              </form>
+              <p class="muted">Koristi samo ako zaboravis lozinku ili ne mozes da se prijavis.</p>
+            </article>
+          </div>
+
           <p id="statusMessage" class="status hidden"></p>
         </div>
       </section>

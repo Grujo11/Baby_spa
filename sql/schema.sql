@@ -3,6 +3,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   email TEXT NOT NULL UNIQUE,
+  password_hash TEXT,
   email_verified_at TIMESTAMPTZ,
   first_name TEXT,
   last_name TEXT,
@@ -89,3 +90,4 @@ CREATE INDEX IF NOT EXISTS idx_reservations_user ON reservations (user_id, creat
 
 ALTER TABLE reservations ADD COLUMN IF NOT EXISTS baby_name TEXT;
 ALTER TABLE reservations ADD COLUMN IF NOT EXISTS baby_age_months INTEGER;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash TEXT;

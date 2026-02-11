@@ -31,6 +31,8 @@ const BOOKING_WINDOW_DAYS = 7;
 const SESSION_COOKIE_NAME = "bs_session";
 const SESSION_TTL_DAYS = 7;
 const TOKEN_TTL_MINUTES = 30;
+const PASSWORD_MIN_LENGTH = 8;
+const PASSWORD_MAX_LENGTH = 128;
 const PUBLIC_DIR = path.join(__dirname, "public");
 
 const pool = new Pool({
@@ -62,6 +64,29 @@ function hashToken(token) {
 
 function validateEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function validatePassword(password) {
+  return typeof password === "string" && password.length >= PASSWORD_MIN_LENGTH && password.length <= PASSWORD_MAX_LENGTH;
+}
+
+function hashPassword(password) {
+  const salt = crypto.randomBytes(16).toString("hex");
+  const hash = crypto.scryptSync(password, salt, 64).toString("hex");
+  return `scrypt$${salt}$${hash}`;
+}
+
+function verifyPassword(password, storedHash) {
+  if (!storedHash || typeof storedHash !== "string") return false;
+  const parts = storedHash.split("$");
+  if (parts.length !== 3 || parts[0] !== "scrypt") return false;
+  const salt = parts[1];
+  const expectedHash = parts[2];
+  const actualHash = crypto.scryptSync(password, salt, 64).toString("hex");
+  const expected = Buffer.from(expectedHash, "hex");
+  const actual = Buffer.from(actualHash, "hex");
+  if (expected.length !== actual.length) return false;
+  return crypto.timingSafeEqual(expected, actual);
 }
 
 function startOfDay(date) {
@@ -439,6 +464,7 @@ async function maybeEnsureSchema() {
   if (!fs.existsSync(schemaPath)) return;
   const sql = fs.readFileSync(schemaPath, "utf8");
   await pool.query(sql);
+  await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash TEXT");
   await pool.query("ALTER TABLE reservations ADD COLUMN IF NOT EXISTS baby_name TEXT");
   await pool.query("ALTER TABLE reservations ADD COLUMN IF NOT EXISTS baby_age_months INTEGER");
 }
@@ -488,7 +514,117 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (method === "GET" && pathname === "/login") {
+      const user = await getSessionUser(cookies[SESSION_COOKIE_NAME]);
+      if (user) {
+        if (isAdmin(user)) return redirect(res, "/admin");
+        return redirect(res, "/");
+      }
       return serveFile(res, path.join(PUBLIC_DIR, "login.html"));
+    }
+
+    if (method === "POST" && pathname === "/api/auth/register") {
+      const body = parseBody(req, await readBody(req));
+      const email = String(body.email || "")
+        .trim()
+        .toLowerCase();
+      const password = String(body.password || "");
+      const confirmPassword = String(body.confirmPassword || "");
+
+      if (!validateEmail(email)) return redirect(res, "/login?register_error=1");
+      if (!validatePassword(password)) return redirect(res, "/login?weak_password=1");
+      if (password !== confirmPassword) return redirect(res, "/login?mismatch=1");
+
+      try {
+        const existing = await pool.query(
+          "SELECT id, email_verified_at, password_hash FROM users WHERE email = $1 LIMIT 1",
+          [email]
+        );
+        const passwordHash = hashPassword(password);
+        let userId;
+
+        if (!existing.rows[0]) {
+          const created = await pool.query(
+            "INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id",
+            [email, passwordHash]
+          );
+          userId = created.rows[0].id;
+        } else {
+          const user = existing.rows[0];
+          if (user.email_verified_at) {
+            if (user.password_hash) return redirect(res, "/login?exists=1");
+            await pool.query("UPDATE users SET password_hash = $1, updated_at = now() WHERE id = $2", [passwordHash, user.id]);
+            return redirect(res, "/login?password_ready=1");
+          }
+
+          await pool.query("UPDATE users SET password_hash = $1, updated_at = now() WHERE id = $2", [passwordHash, user.id]);
+          userId = user.id;
+        }
+
+        const token = await createEmailVerificationToken(userId);
+        await sendVerificationEmail(email, token);
+        return redirect(res, "/login?verify_sent=1");
+      } catch (err) {
+        console.error("[auth:register]", err);
+        return redirect(res, "/login?register_error=1");
+      }
+    }
+
+    if (method === "POST" && pathname === "/api/auth/login-password") {
+      const body = parseBody(req, await readBody(req));
+      const email = String(body.email || "")
+        .trim()
+        .toLowerCase();
+      const password = String(body.password || "");
+
+      if (!validateEmail(email) || !password) return redirect(res, "/login?login_error=1");
+
+      try {
+        const result = await pool.query(
+          "SELECT id, email_verified_at, password_hash, role FROM users WHERE email = $1 LIMIT 1",
+          [email]
+        );
+        const user = result.rows[0];
+        if (!user) return redirect(res, "/login?login_error=1");
+        if (!user.email_verified_at) return redirect(res, "/login?not_verified=1");
+        if (!user.password_hash) return redirect(res, "/login?no_password=1");
+        if (!verifyPassword(password, user.password_hash)) return redirect(res, "/login?login_error=1");
+
+        await createSession(res, user.id);
+        if (String(user.role || "").toUpperCase() === "ADMIN") {
+          return redirect(res, "/admin");
+        }
+        return redirect(res, "/");
+      } catch (err) {
+        console.error("[auth:login-password]", err);
+        return redirect(res, "/login?login_error=1");
+      }
+    }
+
+    if (method === "POST" && pathname === "/api/auth/request-login-link") {
+      const body = parseBody(req, await readBody(req));
+      const email = String(body.email || "")
+        .trim()
+        .toLowerCase();
+      if (!validateEmail(email)) return redirect(res, "/login?error=1");
+
+      try {
+        const result = await pool.query("SELECT id, email, email_verified_at FROM users WHERE email = $1 LIMIT 1", [email]);
+        const user = result.rows[0];
+        if (user) {
+          if (!user.email_verified_at) {
+            const token = await createEmailVerificationToken(user.id);
+            await sendVerificationEmail(user.email, token);
+          } else {
+            const token = await createLoginToken(user.id);
+            await sendLoginEmail(user.email, token);
+          }
+        }
+
+        return redirect(res, "/login?sent=1");
+      } catch (err) {
+        console.error("[auth:request-login-link]", err);
+        return redirect(res, "/login?error=1");
+      }
     }
 
     if (method === "POST" && pathname === "/api/auth/request-access") {
@@ -497,20 +633,17 @@ const server = http.createServer(async (req, res) => {
       if (!validateEmail(email)) return redirect(res, "/login?error=1");
 
       try {
-        const existing = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
-        let user = existing.rows[0];
+        const existing = await pool.query("SELECT id, email, email_verified_at FROM users WHERE email = $1 LIMIT 1", [email]);
+        const user = existing.rows[0];
 
-        if (!user) {
-          const created = await pool.query("INSERT INTO users (email) VALUES ($1) RETURNING *", [email]);
-          user = created.rows[0];
-        }
-
-        if (!user.email_verified_at) {
-          const token = await createEmailVerificationToken(user.id);
-          await sendVerificationEmail(user.email, token);
-        } else {
-          const token = await createLoginToken(user.id);
-          await sendLoginEmail(user.email, token);
+        if (user) {
+          if (!user.email_verified_at) {
+            const token = await createEmailVerificationToken(user.id);
+            await sendVerificationEmail(user.email, token);
+          } else {
+            const token = await createLoginToken(user.id);
+            await sendLoginEmail(user.email, token);
+          }
         }
 
         return redirect(res, "/login?sent=1");
