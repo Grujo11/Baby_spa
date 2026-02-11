@@ -1,0 +1,130 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  engineType = "binary"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum SlotStatus {
+  AVAILABLE
+  BOOKED
+  BLOCKED
+}
+
+enum ReservationStatus {
+  ACTIVE
+  CANCELED
+}
+
+model User {
+  id               String                     @id @default(uuid()) @db.Uuid
+  email            String                     @unique
+  emailVerifiedAt  DateTime?
+  firstName        String?
+  lastName         String?
+  phone            String?
+  role             UserRole                   @default(USER)
+  createdAt        DateTime                   @default(now())
+  updatedAt        DateTime                   @updatedAt
+  reservations     Reservation[]
+  emailTokens      EmailVerificationToken[]
+  loginTokens      LoginToken[]
+  sessions         Session[]
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model LoginToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Session {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model WorkDay {
+  id               String    @id @default(uuid()) @db.Uuid
+  workDate         DateTime  @db.Date
+  startTime        DateTime? @db.Time
+  endTime          DateTime? @db.Time
+  isClosed         Boolean   @default(false)
+  createdByAdminId String?   @db.Uuid
+  createdAt        DateTime  @default(now())
+  timeSlots        TimeSlot[]
+
+  @@unique([workDate])
+}
+
+model TimeSlot {
+  id         String     @id @default(uuid()) @db.Uuid
+  workDate   DateTime   @db.Date
+  startTime  DateTime
+  endTime    DateTime
+  status     SlotStatus @default(AVAILABLE)
+  workDayId  String?    @db.Uuid
+  createdAt  DateTime   @default(now())
+  workDay    WorkDay?   @relation(fields: [workDayId], references: [id], onDelete: SetNull)
+  reservation Reservation?
+
+  @@unique([workDate, startTime])
+  @@index([workDate, status])
+}
+
+model Reservation {
+  id              String             @id @default(uuid()) @db.Uuid
+  userId          String             @db.Uuid
+  slotId          String             @unique @db.Uuid
+  firstName       String
+  lastName        String
+  phone           String
+  notes           String?
+  status          ReservationStatus  @default(ACTIVE)
+  reminderSentAt  DateTime?
+  createdAt       DateTime           @default(now())
+  canceledAt      DateTime?
+  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  slot            TimeSlot           @relation(fields: [slotId], references: [id], onDelete: Restrict)
+  cancelTokens    ReservationCancelToken[]
+}
+
+model ReservationCancelToken {
+  id             String    @id @default(uuid()) @db.Uuid
+  reservationId  String    @db.Uuid
+  tokenHash      String    @unique
+  expiresAt      DateTime
+  usedAt         DateTime?
+  createdAt      DateTime  @default(now())
+  reservation    Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+}

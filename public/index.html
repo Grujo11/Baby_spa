@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="sr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Baby Spa - Rezervacije</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600&family=Oswald:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="hero-shell">
+    <main class="shell">
+      <header class="page-header">
+        <p class="eyebrow">Baby Spa</p>
+        <h1 class="title">Rezervacije <span>Termina</span></h1>
+        <p class="subtitle">
+          Izaberi dan i termin. Email potvrda stize odmah, a podsetnik stize 2 sata
+          pre zakazanog termina.
+        </p>
+      </header>
+
+      <section class="panel">
+        <div class="section">
+          <div>
+            <p class="eyebrow">Rezervacije za dan</p>
+            <div class="row">
+              <select id="dateSelect" class="select"></select>
+              <span id="dateLabel" class="label"></span>
+            </div>
+            <p class="note">Termini su dostupni za sledecih 7 dana.</p>
+          </div>
+
+          <div class="row" style="justify-content: space-between;">
+            <h2 class="title" style="font-size: 24px;">Slobodni termini</h2>
+            <span id="selectedSlotLabel" class="label"></span>
+          </div>
+
+          <div id="slotsGrid" class="slots-grid"></div>
+          <p id="slotsMessage" class="muted"></p>
+
+          <div class="grid-2">
+            <div id="formCard" class="card">
+              <div id="emptyState" class="section">
+                <h3 class="title" style="font-size: 20px;">Izaberi termin</h3>
+                <p class="muted">Klikni na termin da se pojavi forma za rezervaciju.</p>
+              </div>
+
+              <form id="reservationForm" class="section hidden">
+                <div class="row" style="justify-content: space-between;">
+                  <h3 class="title" style="font-size: 20px;">Podaci za rezervaciju</h3>
+                  <span id="formSlotLabel" class="label"></span>
+                </div>
+                <div class="form-grid">
+                  <input id="firstName" type="text" placeholder="Ime" required />
+                  <input id="lastName" type="text" placeholder="Prezime" required />
+                  <input id="phone" type="text" placeholder="Telefon" required />
+                  <input id="babyName" type="text" placeholder="Ime bebe" required />
+                  <input
+                    id="babyAgeMonths"
+                    type="number"
+                    placeholder="Starost bebe (meseci)"
+                    min="0"
+                    max="36"
+                    step="1"
+                    required
+                  />
+                  <textarea id="notes" placeholder="Napomena (opciono)"></textarea>
+                </div>
+                <button id="reserveButton" class="button" type="submit">Rezervisi termin</button>
+                <p id="reservationMessage" class="status"></p>
+              </form>
+            </div>
+
+            <div class="card">
+              <h3 class="title" style="font-size: 20px;">Nalog</h3>
+              <p class="muted">Ulogovan si kao:</p>
+              <p id="accountEmail" style="font-size: 16px; margin: 4px 0 12px 0;"></p>
+              <p id="accountMessage" class="note">Profil se cuva automatski.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

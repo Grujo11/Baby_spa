@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="sr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Baby Spa - Admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600&family=Oswald:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="hero-shell">
+    <main class="shell">
+      <header class="page-header">
+        <p class="eyebrow">Baby Spa</p>
+        <h1 class="title">Admin <span>Panel</span></h1>
+        <p class="subtitle">
+          Ovde upravljas radnim danima i terminima. Admin ne vidi korisnicku stranu za rezervacije.
+        </p>
+      </header>
+
+      <section class="panel">
+        <div class="grid-2">
+          <div class="card">
+            <h3 class="title" style="font-size: 22px;">Radno vreme</h3>
+            <form id="workDayForm" class="form-grid" style="margin-top: 12px;">
+              <label class="muted" for="workDate">Datum</label>
+              <input id="workDate" name="workDate" type="date" required />
+
+              <label class="muted" for="startTime">Pocetak rada</label>
+              <input id="startTime" name="startTime" type="time" step="3600" />
+
+              <label class="muted" for="endTime">Kraj rada</label>
+              <input id="endTime" name="endTime" type="time" step="3600" />
+
+              <label class="muted" for="isClosed" style="display:flex; gap:10px; align-items:center;">
+                <input id="isClosed" name="isClosed" type="checkbox" style="width:auto;" />
+                Neradni dan
+              </label>
+              <p class="note">Unesi sate u formatu na pun sat (npr. 09:00 do 17:00).</p>
+
+              <button class="button" type="submit">Sacuvaj dan</button>
+            </form>
+            <p id="formMessage" class="status"></p>
+          </div>
+
+          <div class="card">
+            <h3 class="title" style="font-size: 22px;">Admin nalog</h3>
+            <p class="muted">Ulogovan:</p>
+            <p id="adminEmail" style="font-size: 16px; margin: 4px 0 12px 0;"></p>
+            <p class="note">Ova strana je dostupna samo nalogu sa role = ADMIN.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="row" style="justify-content: space-between;">
+          <h2 class="title" style="font-size: 24px;">Radni dani</h2>
+          <button id="refreshBtn" class="button secondary" type="button">Osvezi</button>
+        </div>
+        <div id="daysList" class="section" style="margin-top: 16px;"></div>
+        <p id="daysMessage" class="muted"></p>
+      </section>
+
+      <section class="panel">
+        <div class="row" style="justify-content: space-between; gap: 10px;">
+          <h2 class="title" style="font-size: 24px;">Rezervisani termini</h2>
+          <div class="row" style="gap: 10px;">
+            <input id="reservationsDate" type="date" />
+            <button id="clearReservationsDateBtn" class="button secondary" type="button">Svi dani</button>
+            <button id="refreshReservationsBtn" class="button secondary" type="button">Osvezi</button>
+          </div>
+        </div>
+        <div id="reservationsList" class="section" style="margin-top: 16px;"></div>
+        <p id="reservationsMessage" class="muted"></p>
+      </section>
+    </main>
+
+    <script src="/admin.js"></script>
+  </body>
+</html>

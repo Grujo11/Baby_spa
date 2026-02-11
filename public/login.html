@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="sr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Baby Spa - Prijava</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600&family=Oswald:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="hero-shell">
+    <main class="shell">
+      <section class="panel">
+        <div class="section">
+          <div>
+            <p class="eyebrow">Baby Spa</p>
+            <h1 class="title">Prijava</h1>
+          </div>
+          <p class="subtitle">
+            Unesi mejl. Stize link za potvrdu naloga ili prijavu. Nakon toga
+            ostajes ulogovan i vracas se na pocetnu stranu.
+          </p>
+          <form class="form-grid" action="/api/auth/request-access" method="post">
+            <input type="email" name="email" placeholder="mejl@primer.com" required />
+            <button class="button" type="submit">Posalji link</button>
+          </form>
+          <p id="statusMessage" class="status hidden"></p>
+        </div>
+      </section>
+    </main>
+    <script src="/login.js"></script>
+  </body>
+</html>
